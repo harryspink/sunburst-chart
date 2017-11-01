@@ -35,10 +35,11 @@ Object.assign(d3, d3Color);
 class PersonalitySunburstChart {
 
   constructor(options) {
-    this._options = extend({}, this.defaultOptions(), pick(options, ['element', 'selector', 'version']));
+    this._options = extend({}, this.defaultOptions(), pick(options, ['element', 'selector', 'version', 'comparison']));
     this._version = this._options.version;
     this._selector = this._options.selector;
     this._element = this._options.element;
+    this._comparison =  this._options.comparison;
     this.visualizationWidth  = this._options.width  || '100%';
     this.visualizationHeight = this._options.height || '100%';
     this.width  = ((1/this._options.scale || 1) * 45) * 16.58;
@@ -53,11 +54,13 @@ class PersonalitySunburstChart {
     this.id = 'SystemUWidget',
     this.COLOR_PALLETTE = colors,
     this.loadingDiv = 'dummy';
+    
   }
 
   defaultOptions() {
     return {
-      version: 'v2'
+      version: 'v2',
+      comparison: '0'
     };
   }
 
@@ -88,6 +91,7 @@ class PersonalitySunburstChart {
       id: self.id,
       exclude: self.exclude,
       COLOR_PALLETTE: colors,
+      comparison: self._comparison,
       loadingDiv: self.loadingDiv,
       switchState: function() {
       },

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 /* global alert */
+
 'use strict';
 const d3 = require('d3');
 const d3Color = require('d3-color');
@@ -252,15 +253,21 @@ var renderChart = function() {
             return d.x + arc1_extend;
           }) //dx: endangle,
           .innerRadius(function(d) {
+            if(_widget.comparison == 1){
+              return sector_bottom_pad + d.y + d.dy/2;
+            }
             return sector_bottom_pad + d.y;
           })
           .outerRadius(function(d) {
+            if(_widget.comparison == 2){
+              return d.y + d.dy/2;
+            }
             return d.y + d.dy;
           });
 
         var arc2 = d3.svg.arc()
           .startAngle(function(d) {
-            return d.x + arc1_extend;
+            return d.x;
           }) //x:startangle,
           .endAngle(function(d) {
             return d.x + Math.abs(score2) * d.dx - right_pad;
@@ -279,8 +286,8 @@ var renderChart = function() {
           arc_label_radius = d.y + d.dy - (d.y + d.dy - sector_bottom_pad - d.y) / 6;
           arc_label_number_radius = d.y + d.dy - (d.y + d.dy - sector_bottom_pad - d.y) / 8;
         } else {
-          arc_label_radius = sector_bottom_pad + d.y + (d.y + d.dy - sector_bottom_pad - d.y) * 5 / 12;
-          arc_label_number_radius = d.y + d.dy - (d.y + d.dy - sector_bottom_pad - d.y) / 7;
+          arc_label_radius = d.y + d.dy - (d.y + d.dy - sector_bottom_pad - d.y) / 7;
+          arc_label_number_radius = sector_bottom_pad + d.y + (d.y + d.dy - sector_bottom_pad - d.y) * 5 / 12 - 5;
         }
 
 
@@ -299,7 +306,7 @@ var renderChart = function() {
               return d.x + d.dx - right_pad;
             })
             .radius(function(d) {
-              return d.depth === 1 ? d.y + d.dy - (d.y + d.dy - sector_bottom_pad - d.y) / 3 : sector_bottom_pad + d.y + (d.y + d.dy - sector_bottom_pad - d.y) * 3 / 5;
+              return d.depth === 1 ? d.y + d.dy - (d.y + d.dy - sector_bottom_pad - d.y) / 3: sector_bottom_pad + d.y + (d.y + d.dy - sector_bottom_pad - d.y) * 3 / 5 +5;
             });
 
           arc_for_label_number = d3.svg.singleArc()
@@ -310,7 +317,7 @@ var renderChart = function() {
               return d.x + d.dx - right_pad;
             })
             .radius(function(d) {
-              return d.depth === 1 ? d.y + d.dy - (d.y + d.dy - sector_bottom_pad - d.y) / 3 : sector_bottom_pad + d.y + (d.y + d.dy - sector_bottom_pad - d.y) / 5;
+              return d.depth === 1 ? d.y + d.dy - (d.y + d.dy - sector_bottom_pad - d.y) / 3 : sector_bottom_pad + d.y + (d.y + d.dy - sector_bottom_pad - d.y) / 5 -2;
             });
 
         }
@@ -365,20 +372,40 @@ var renderChart = function() {
           if (d.score_lbl === 'Low') out_r = sector_bottom_pad + d.y + bar_length_factor * 0.2 * d.dy;
 
           var _bar = d3.svg.arc()
-            .startAngle(d.x)
-            .endAngle(d.x + d.dx)
+            .startAngle((_widget.comparison == 2) ? d.x + d.dx/2 : d.x + 0.002)
+            .endAngle((_widget.comparison == 1) ? d.x + d.dx/2 : d.x + d.dx  - 0.002)
             .innerRadius(inner_r)
             .outerRadius(out_r); // Draw leaf arcs
+
+          // add container area for leaf comparisons
+          
+          var max_leaf_radius = sector_bottom_pad + d.y + bar_length_factor * 1 * d.dy;
+          if(_widget.comparison != 0){
+            var leaf_contain = d3.svg.arc()
+              .startAngle(d.x)
+              .endAngle(d.x + d.dx)
+              .innerRadius(inner_r + 1)
+              .outerRadius(max_leaf_radius);
+              
+              // only draw once
+              if(_widget.comparison == 1){
+                g.append('path')
+                .attr('class', 'arc2')
+                .attr('d', leaf_contain)
+                .style('stroke', strokecolor) // was: arc1color
+                .style('fill', arc1color)
+                .style('fill-opacity', 0.15);
+              }
+          }
 
           g.append('path')
             .attr('class', '_bar')
             .attr('d', _bar)
             .style('stroke', '#EEE')
+            .style('opacity', (_widget.comparison == 2) ? 0.45 : 1)
             .style('fill', function() {
               return d3.color(outerRingColor);
             });
-
-
 
           //add label;
 
@@ -391,11 +418,23 @@ var renderChart = function() {
           if (d.x > Math.PI) {
             rotate = d.x * 180 / Math.PI + 90;
             lbl_anchor = 'end';
-            dy_init = -d.dx * 20 * Math.PI;
+            dy_init = -d.dx * 20 * Math.PI + 5;
           } else {
             rotate = d.x * 180 / Math.PI - 90;
             lbl_anchor = 'start';
             dy_init = 5 + d.dx * 20 * Math.PI;
+          }
+          
+          if(_widget.comparison == 2){
+            if (d.x > Math.PI) {
+              rotate = d.x + d.x * 180 / Math.PI + 90;
+              lbl_anchor = 'end';
+              dy_init = -d.dx * 20 * Math.PI - 6.5;
+            } else {
+              rotate = 6.5 + d.x * 180 / Math.PI - 90;
+              lbl_anchor = 'start';
+              dy_init = 20 + d.dx * 20 * Math.PI;
+            }
           }
 
           var max_label_size = 13,
@@ -404,17 +443,33 @@ var renderChart = function() {
           if ((7.5 + 15 * Math.PI * d.dx) > max_label_size) {
             lable_size = max_label_size;
           }
-
-          label = label + ((score * 100).toFixed(0) === 'NaN' || isNaN(score) ? '' : ' (' + (score * 100).toFixed(0) + '%)');
-
-
+ 
+          if (rotate > 270){
+            var label_s = label + label_score;  
+          } else {
+            var label_s = label_score + ' ' + label;
+          }
+          
+          var org_label_distance = (_widget.comparison == 0) ? out_r + 5 : max_leaf_radius + 5;
           g.append('text')
             .attr('dy', dy_init)
             .attr('class', 'sector_leaf_text')
             .attr('font-size', lable_size)
             .attr('text-anchor', lbl_anchor)
-            .attr('transform', 'translate(' + (out_r + 5) * Math.sin(d.x) + ',' + (-(out_r + 5) * Math.cos(d.x)) + ') ' + 'rotate(' + rotate + ')')
-            .text(label);
+            .attr('transform', 'translate(' + (org_label_distance) * Math.sin(d.x) + ',' + (-org_label_distance * Math.cos(d.x)) + ') ' + 'rotate(' + rotate + ')')
+            .text(_widget.comparison == 0 ? label_s : label_score);
+            
+          if(_widget.comparison == 1){
+             rotate = rotate;
+             
+            g.append('text')
+              .attr('dy', dy_init)
+              .attr('class', 'sector_leaf_text')
+              .attr('font-size', lable_size)
+              .attr('text-anchor', lbl_anchor)
+              .attr('transform', 'translate(' + (org_label_distance +40) * Math.sin(d.x) + ',' + (-(org_label_distance +40) * Math.cos(d.x)) + ') ' + 'rotate(' + rotate + ')')
+              .text(label);
+          }
 
         } else {
           //non-bar/non-leaf sector
@@ -422,7 +477,9 @@ var renderChart = function() {
             .attr('class', 'arc1')
             .attr('d', arc1)
             .style('stroke', strokecolor) // was: arc1color
-            .style('fill', arc1color);
+            .style('fill', arc1color)
+            .style('opacity', (_widget.comparison == 2) ? 0.45 : 1);
+            
 
 
           g.append('path')
@@ -446,6 +503,9 @@ var renderChart = function() {
 
 
           //add label
+          var label_name_arc_text = label_name;
+          if (_widget.comparison == 1) label_name_arc_text = label_name + label_score;
+          if (_widget.comparison == 2) label_name_arc_text = '';
           g.append('text')
             .attr('class', 'sector_label')
             .attr('visibility', function(d) {
@@ -462,7 +522,7 @@ var renderChart = function() {
             .attr('xlink:href', function(d) {
               return '#' + _this.id + '_' + d.id + '.arc_for_label';
             })
-            .text(label_name);
+            .text(label_name_arc_text);
 
           //draw label number
           //path used for label number
@@ -479,6 +539,8 @@ var renderChart = function() {
 
 
             //add label
+            var label_score_arc_text = label_score;
+            if (_widget.comparison == 1) label_score_arc_text = '';
             g.append('text')
               .attr('class', 'sector_label_number ')
               .attr('visibility', function(d) {
@@ -497,7 +559,7 @@ var renderChart = function() {
               .attr('xlink:href', function(d) {
                 return '#' + _this.id + '_' + d.id + '.arc_for_label_number';
               })
-              .text(label_score);
+              .text(label_score_arc_text);
           }
 
 
